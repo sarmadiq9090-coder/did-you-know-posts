@@ -77,7 +77,7 @@ body {{ font-family: Cairo, 'Noto Color Emoji', sans-serif; background: linear-g
 
 
 def render(spec_f, idx):
-    spec = json.loads(spec_f.read_text(encoding="utf-8"))
+    spec = json.loads(spec_f.read_text(encoding="utf-8-sig"))
     out_jpg = ROOT / "posts" / (spec_f.stem + ".jpg")
     with tempfile.TemporaryDirectory() as td:
         page = pathlib.Path(td) / "p.html"
@@ -92,9 +92,39 @@ def render(spec_f, idx):
     print("rendered", out_jpg.name)
 
 
+def explode_batches():
+    """A spec file may hold a JSON list of posts (a batch). Split it into one file per post,
+    numbered after the highest existing NN, then delete the batch file."""
+    def next_num():
+        nums = [int(m.group(1)) for d in ("specs", "posts") for f in (ROOT / d).iterdir()
+                if (m := re.match(r"(\d+)_", f.name))]
+        return max(nums, default=0) + 1
+    for f in sorted((ROOT / "specs").glob("*.json")):
+        try:
+            data = json.loads(f.read_text(encoding="utf-8-sig"))
+        except Exception as e:
+            print(f"INVALID JSON {f.name}: {e}")
+            continue
+        if isinstance(data, dict) and isinstance(data.get("posts"), list):
+            data = data["posts"]
+        if not isinstance(data, list):
+            continue
+        n = next_num()
+        for item in data:
+            if not isinstance(item, dict) or not item.get("text") or not item.get("caption"):
+                print(f"  skipped bad item in {f.name}")
+                continue
+            topic = re.sub(r"[^a-z0-9]+", "_", str(item.pop("name", item.pop("topic", "post"))).lower()).strip("_") or "post"
+            (ROOT / "specs" / f"{n:03d}_{topic}.json").write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
+            n += 1
+        f.unlink()
+        print(f"split {f.name} into {len(data)} specs")
+
+
 def main():
     if not CHROME:
         sys.exit("No Chrome/Chromium found")
+    explode_batches()
     specs = sorted((ROOT / "specs").glob("*.json"))
     for i, f in enumerate(specs):
         if not (ROOT / "posts" / (f.stem + ".jpg")).exists():

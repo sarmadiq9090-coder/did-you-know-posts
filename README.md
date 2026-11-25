@@ -1,7 +1,7 @@
 # هل تعلم؟ — نشر تلقائي على إنستغرام
 
 ينشر هذا المستودع أربعة منشورات يومياً في الساعة 1:07 ظهراً و5:07 عصراً و8:07 مساءً و10:07 مساءً بتوقيت بغداد على حساب
-@did.you.know.iq، عن طريق API إنستغرام الرسمي (Instagram API with Instagram Login).
+@did.you.know.iq، عن طريق API إنستغرام الرسمي (Instagram API with Unified Login عبر graph.facebook.com).
 
 ## المحتويات
 - `posts/` صور المنشورات (JPEG).

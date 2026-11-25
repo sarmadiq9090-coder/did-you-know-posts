@@ -4,7 +4,7 @@ Env:
   IG_TOKEN     Instagram user access token (from GitHub secret)
   GITHUB_REPOSITORY, GITHUB_REF_NAME  (set by GitHub Actions) used to build public image URLs
 """
-import json, os, sys, time, pathlib, urllib.parse, urllib.request
+import json, os, re, sys, time, pathlib, urllib.parse, urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TOKEN = os.environ["IG_TOKEN"].strip()
@@ -37,7 +37,10 @@ def main():
     # Also pick up any image dropped into posts/ without editing queue.json.
     # Caption comes from a .txt file with the same name (posts/10_x.jpg -> posts/10_x.txt).
     listed = {p["image"] for p in queue}
-    for img in sorted((ROOT / "posts").glob("*")):
+    def order(f):
+        m = re.match(r"(\d+)_", f.name)
+        return (int(m.group(1)) if m else 10**9, f.name)
+    for img in sorted((ROOT / "posts").glob("*"), key=order):
         if img.suffix.lower() not in (".jpg", ".jpeg", ".png"):
             continue
         rel = f"posts/{img.name}"
