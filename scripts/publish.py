@@ -34,6 +34,18 @@ def call(method, path, **params):
 
 def main():
     queue = json.loads((ROOT / "queue.json").read_text(encoding="utf-8"))
+    # Also pick up any image dropped into posts/ without editing queue.json.
+    # Caption comes from a .txt file with the same name (posts/10_x.jpg -> posts/10_x.txt).
+    listed = {p["image"] for p in queue}
+    for img in sorted((ROOT / "posts").glob("*")):
+        if img.suffix.lower() not in (".jpg", ".jpeg", ".png"):
+            continue
+        rel = f"posts/{img.name}"
+        if rel in listed:
+            continue
+        cap_f = img.with_suffix(".txt")
+        cap = cap_f.read_text(encoding="utf-8").strip() if cap_f.exists() else ""
+        queue.append({"image": rel, "caption": cap})
     state_f = ROOT / "state.json"
     state = json.loads(state_f.read_text(encoding="utf-8"))
     done = set(state["published"])
