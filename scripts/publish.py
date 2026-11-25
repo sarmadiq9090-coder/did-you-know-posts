@@ -6,9 +6,12 @@ Env:
 """
 import json, os, sys, time, pathlib, urllib.parse, urllib.request
 
-API = "https://graph.instagram.com/v26.0"
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TOKEN = os.environ["IG_TOKEN"].strip()
+IG_ID = os.environ.get("IG_USER_ID", "17841462150090981")  # did.you.know.iq
+# Instagram-login tokens start with "IG"; Unified/Facebook-login tokens only work on graph.facebook.com
+API = ("https://graph.instagram.com/v26.0" if TOKEN.startswith("IG")
+       else "https://graph.facebook.com/v26.0")
 REPO = os.environ["GITHUB_REPOSITORY"]
 BRANCH = os.environ.get("GITHUB_REF_NAME", "main")
 
@@ -39,9 +42,8 @@ def main():
         print("Queue is empty - nothing to publish.")
         return
 
-    me = call("GET", "me", fields="user_id,username")
-    ig_id = me["user_id"]
-    print(f"Publishing as @{me['username']}: {nxt['image']}")
+    ig_id = IG_ID
+    print(f"Publishing via {API} to {ig_id}: {nxt['image']}")
 
     image_url = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/{urllib.parse.quote(nxt['image'])}"
     container = call("POST", f"{ig_id}/media", image_url=image_url, caption=nxt["caption"])["id"]
