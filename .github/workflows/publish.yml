@@ -1,0 +1,48 @@
+name: Publish daily post
+
+on:
+  schedule:
+    - cron: "0 18 * * *"   # 18:00 UTC = 21:00 Baghdad
+  workflow_dispatch: {}     # manual "Run workflow" button for testing
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish next post
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+        run: python3 scripts/publish.py
+
+      - name: Save progress
+        run: |
+          git config user.name "post-bot"
+          git config user.email "post-bot@users.noreply.github.com"
+          git add state.json
+          git diff --cached --quiet || git commit -m "Published next post"
+          git push
+
+  refresh-token:
+    # Weekly: extend the 60-day token. Needs a GH_PAT secret (fine-grained, Secrets: write on this repo).
+    if: github.event.schedule == '0 18 * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refresh token on Fridays
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          if [ "$(date -u +%u)" != "5" ] || [ -z "$GH_TOKEN" ]; then echo "Skip refresh"; exit 0; fi
+          python3 scripts/refresh_token.py
+          gh secret set IG_TOKEN --repo "$GITHUB_REPOSITORY" < new_token.txt
+          rm -f new_token.txt
