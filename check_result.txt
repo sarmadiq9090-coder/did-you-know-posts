@@ -1,0 +1,2 @@
+checked_at: 2026-11-25T21:05:56.569948Z
+result: NO_SECRET (IG_TOKEN is empty or missing)
