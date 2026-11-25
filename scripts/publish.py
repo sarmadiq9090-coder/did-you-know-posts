@@ -52,7 +52,8 @@ def main():
     state_f = ROOT / "state.json"
     state = json.loads(state_f.read_text(encoding="utf-8"))
     done = set(state["published"])
-    nxt = next((p for p in queue if p["image"] not in done), None)
+    reeled = set(state.get("reeled", []))   # facts already published as a reel are skipped
+    nxt = next((p for p in queue if p["image"] not in done and pathlib.Path(p["image"]).stem not in reeled), None)
     if not nxt:
         print("Queue is empty - nothing to publish.")
         return
