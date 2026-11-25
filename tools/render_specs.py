@@ -115,7 +115,7 @@ def explode_batches():
                 print(f"  skipped bad item in {f.name}")
                 continue
             topic = re.sub(r"[^a-z0-9]+", "_", str(item.pop("name", item.pop("topic", "post"))).lower()).strip("_") or "post"
-            (ROOT / "specs" / f"{n:03d}_{topic}.json").write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
+            (ROOT / "specs" / f"{n:02d}_{topic}.json").write_text(json.dumps(item, ensure_ascii=False, indent=2), encoding="utf-8")
             n += 1
         f.unlink()
         print(f"split {f.name} into {len(data)} specs")
