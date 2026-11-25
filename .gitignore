@@ -1,2 +1,5 @@
 __pycache__/
 new_token.txt
+reel_test_out/
+__pycache__/
+*.pyc

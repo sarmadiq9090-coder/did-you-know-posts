@@ -2,7 +2,12 @@ name: Publish reel
 on:
   schedule:
     - cron: "37 12,18 * * *"   # ~3:37pm and 9:37pm Baghdad (UTC+3), between the image slots
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Render + validate only (nothing is published)"
+        type: boolean
+        default: false
   push:
     paths: ["reel_request.txt"]
 permissions:
@@ -13,21 +18,38 @@ concurrency:
 jobs:
   reel:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      REEL_OUT: ${{ runner.temp }}/reel_out
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-color-emoji ffmpeg >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-color-emoji fonts-dejavu-core ffmpeg >/dev/null
           pip install -q numpy pillow
-      - name: Make and publish reel
+      - name: Make, validate and publish reel
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/publish_reel.py
+        run: python3 scripts/publish_reel.py ${{ inputs.dry_run && '--dry-run' || '' }}
+      - name: Keep previews and report (3 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/reel_out/*.preview.png
+            ${{ runner.temp }}/reel_out/*.report.json
+            ${{ runner.temp }}/reel_out/*.meta.json
+            ${{ runner.temp }}/reel_out/*.cover.jpg
+            ${{ runner.temp }}/reel_out/*.mp4
+          retention-days: 3
+          if-no-files-found: ignore
       - name: Save progress
+        if: always() && !inputs.dry_run
         run: |
           git config user.name "post-bot"; git config user.email "post-bot@users.noreply.github.com"
           git add state.json
-          git diff --cached --quiet || git commit -m "Published reel"
+          git diff --cached --quiet && exit 0
+          git commit -m "Published reel"
           git pull --rebase -q; git push
