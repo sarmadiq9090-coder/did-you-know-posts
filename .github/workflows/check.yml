@@ -1,0 +1,18 @@
+name: Check token (read-only)
+on:
+  push:
+    paths: ["check_request.txt"]
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+        run: python3 scripts/check_token.py
+      - run: |
+          git config user.name "post-bot"; git config user.email "post-bot@users.noreply.github.com"
+          git add check_result.txt; git commit -m "Token check result"; git push
