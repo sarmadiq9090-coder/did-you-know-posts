@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: "0 18 * * *"   # 18:00 UTC = 21:00 Baghdad
   workflow_dispatch: {}     # manual "Run workflow" button for testing
+  push:
+    paths: ["publish_request.txt"]   # Claude can trigger a publish by updating this file
 
 permissions:
   contents: write
