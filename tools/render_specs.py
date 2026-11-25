@@ -1,0 +1,108 @@
+"""Render every specs/NN_topic.json that has no posts/NN_topic.jpg yet.
+
+Spec format (UTF-8 JSON):
+{
+  "text": "أن ... <b>رقم مهم</b> ...",          # required, starts with «أن», 2-5 lines
+  "caption": "الوصف\n\n#هل_تعلم ...",           # required
+  "photos": [5986729, 3046629, 9718224],       # optional: 1-3 Pexels photo IDs
+  "emoji": "🐙",                                 # optional: used when there are no photos
+  "colors": ["#0b3d5c", "#1b6f8f"]              # optional: gradient
+}
+"""
+import base64, json, pathlib, subprocess, sys, tempfile, urllib.request, html, re, random
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+FONT = ROOT / "assets" / "Cairo.ttf"
+CHROME = next((c for c in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
+               if subprocess.run(["which", c], capture_output=True).returncode == 0), None)
+PALETTES = [("#0b3d5c", "#1b6f8f"), ("#6b1d3a", "#c2512b"), ("#3d4a14", "#7c8a2a"),
+            ("#5c0f1e", "#a8243a"), ("#2b1a5c", "#5b3fa8"), ("#0f4a3a", "#1f8a6a"), ("#4a2f0a", "#a8651f")]
+
+
+def photo_uri(pid):
+    url = f"https://images.pexels.com/photos/{pid}/pexels-photo-{pid}.jpeg?auto=compress&cs=tinysrgb&w=1200"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=60) as r:
+        return "data:image/jpeg;base64," + base64.b64encode(r.read()).decode()
+
+
+def clean(text):
+    # allow only <b> tags; escape everything else
+    t = html.escape(text)
+    return re.sub(r"&lt;(/?)b&gt;", r"<\1b>", t)
+
+
+def build_html(spec, idx):
+    c1, c2 = spec.get("colors") or PALETTES[idx % len(PALETTES)]
+    photos = []
+    for pid in (spec.get("photos") or [])[:3]:
+        try:
+            photos.append(photo_uri(int(pid)))
+        except Exception as e:
+            print(f"  photo {pid} failed: {e}")
+    if photos:
+        cls = {1: "one", 2: "two", 3: ""}[len(photos)]
+        tiles = "".join(f'<div class="g{i+1}" style="background-image:url({u})"></div>' for i, u in enumerate(photos))
+        top = f'<div class="grid {cls}">{tiles}</div>'
+    else:
+        top = f'<div class="hero">{html.escape(spec.get("emoji", "💡"))}</div>'
+    return f"""<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>
+@font-face {{ font-family: Cairo; src: url('file://{FONT}'); }}
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+html,body {{ width:1080px; height:1350px; overflow:hidden; }}
+body {{ font-family: Cairo, 'Noto Color Emoji', sans-serif; background: linear-gradient(135deg, {c1} 0%, {c2} 100%); padding:34px; }}
+.card {{ width:100%; height:100%; display:flex; flex-direction:column; }}
+.grid {{ display:grid; grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; gap:12px; height:640px; }}
+.grid div {{ background-size:cover; background-position:center; border-radius:18px; box-shadow:0 6px 18px rgba(0,0,0,.35); }}
+.g1 {{ grid-row: 1 / 3; }}
+.grid.two {{ grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }}
+.grid.two .g1, .grid.one .g1 {{ grid-row:auto; }}
+.grid.one {{ grid-template-columns: 1fr; grid-template-rows: 1fr; }}
+.hero {{ height:560px; display:flex; align-items:center; justify-content:center; font-size:300px;
+  font-family:'Noto Color Emoji'; background: rgba(255,255,255,.08); border-radius:24px; }}
+.label {{ display:flex; align-items:center; gap:16px; margin:26px 0 14px; }}
+.label .t {{ font-size:62px; font-weight:900; color:#ffcc33; text-shadow:0 3px 10px rgba(0,0,0,.35); }}
+.label .bulb {{ font-family:'Noto Color Emoji'; font-size:56px; }}
+.label .line {{ flex:1; height:4px; background: rgba(255,255,255,.35); border-radius:4px; }}
+.text {{ color:#fff; font-size:41px; font-weight:600; line-height:1.75; text-align:justify; text-shadow:0 2px 6px rgba(0,0,0,.25); }}
+.text b {{ color:#ffcc33; font-weight:900; }}
+.foot {{ margin-top:auto; display:flex; justify-content:space-between; align-items:center; color:rgba(255,255,255,.85);
+  font-size:30px; font-weight:800; border-top:2px solid rgba(255,255,255,.25); padding-top:14px; }}
+.foot .h {{ direction:ltr; }}
+</style></head><body><div class="card">{top}
+<div class="label"><span class="bulb">💡</span><span class="t">هل تعلم؟</span><span class="line"></span></div>
+<div class="text">{clean(spec["text"])}</div>
+<div class="foot"><span>🔖 احفظ المنشور وشاركه</span><span class="h">@did.you.know.iq</span></div>
+</div></body></html>"""
+
+
+def render(spec_f, idx):
+    spec = json.loads(spec_f.read_text(encoding="utf-8"))
+    out_jpg = ROOT / "posts" / (spec_f.stem + ".jpg")
+    with tempfile.TemporaryDirectory() as td:
+        page = pathlib.Path(td) / "p.html"
+        page.write_text(build_html(spec, idx), encoding="utf-8")
+        png = pathlib.Path(td) / "p.png"
+        subprocess.run([CHROME, "--headless=new", "--no-sandbox", "--hide-scrollbars", "--force-device-scale-factor=1",
+                        "--window-size=1080,1350", f"--screenshot={png}", "--virtual-time-budget=4000",
+                        f"file://{page}"], check=True, capture_output=True)
+        from PIL import Image
+        Image.open(png).convert("RGB").crop((0, 0, 1080, 1350)).save(out_jpg, quality=92)
+    (ROOT / "posts" / (spec_f.stem + ".txt")).write_text(spec["caption"].strip() + "\n", encoding="utf-8")
+    print("rendered", out_jpg.name)
+
+
+def main():
+    if not CHROME:
+        sys.exit("No Chrome/Chromium found")
+    specs = sorted((ROOT / "specs").glob("*.json"))
+    for i, f in enumerate(specs):
+        if not (ROOT / "posts" / (f.stem + ".jpg")).exists():
+            try:
+                render(f, i)
+            except Exception as e:
+                print(f"FAILED {f.name}: {e}")
+
+
+if __name__ == "__main__":
+    main()
