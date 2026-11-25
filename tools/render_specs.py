@@ -15,8 +15,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 FONT = ROOT / "assets" / "Cairo.ttf"
 CHROME = next((c for c in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
                if subprocess.run(["which", c], capture_output=True).returncode == 0), None)
-PALETTES = [("#0b3d5c", "#1b6f8f"), ("#6b1d3a", "#c2512b"), ("#3d4a14", "#7c8a2a"),
-            ("#5c0f1e", "#a8243a"), ("#2b1a5c", "#5b3fa8"), ("#0f4a3a", "#1f8a6a"), ("#4a2f0a", "#a8651f")]
+PALETTES = [("#071C30", "#123D59"), ("#082D24", "#175344"), ("#20102F", "#48275F"), ("#300D1B", "#641D35"),
+            ("#261B12", "#594026"), ("#111827", "#303B49"), ("#09282E", "#16505C"), ("#101010", "#292929")]
 
 
 def photo_uri(pid):
