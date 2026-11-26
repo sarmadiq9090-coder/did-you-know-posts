@@ -12,5 +12,7 @@
   ],
   "media_ids": {
     "02_honey": "17982438278915110"
-  }
+  },
+  "paused_until": "2027-12-31T00:00+00:00",
+  "paused_reason": "manual mode: owner publishes from browser"
 }
