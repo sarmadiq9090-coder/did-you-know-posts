@@ -1,6 +1,7 @@
 {
   "published": [
-    "posts/01_octopus.jpg"
+    "posts/01_octopus.jpg",
+    "posts/02_honey.jpg"
   ],
   "reeled": [
     "025_lightning_per_day",
@@ -8,5 +9,8 @@
   ],
   "stories": [
     "q:02_honey"
-  ]
+  ],
+  "media_ids": {
+    "02_honey": "17982438278915110"
+  }
 }
