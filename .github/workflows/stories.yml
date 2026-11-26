@@ -1,8 +1,8 @@
 name: Publish story
 on:
   schedule:
-    - cron: "53 6 * * *"        # 9:53am Baghdad: question teaser for the 1pm post
-    - cron: "20 10,17 * * *"    # 1:20pm and 8:20pm Baghdad: the post just published
+    - cron: "53 6 * * *"        # 9:53am Baghdad: question teaser for the 1pm post (one story a day for now)
+    # more slots later, e.g. "20 10,17 * * *" = 1:20pm and 8:20pm Baghdad stories of the post just published
   workflow_dispatch:
     inputs:
       kind:

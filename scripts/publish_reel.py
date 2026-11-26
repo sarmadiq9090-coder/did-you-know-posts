@@ -162,7 +162,8 @@ def publish(spec, mp4, cover):
         media = call("GET", media_id, fields="id,media_type,media_product_type,permalink,timestamp")
         if media.get("media_product_type") != "REELS":
             raise ApiError(f"published item is not a reel: {media}")
-        media["story"] = share_as_story(f"{base}/{mp4.name}", mp4)   # video still hosted here
+        if os.environ.get("REEL_STORY") == "1":     # reels as stories: off for now (one story a day)
+            media["story"] = share_as_story(f"{base}/{mp4.name}", mp4)   # video still hosted here
         return media
     finally:
         for f in (mp4, cover):                  # processing and verification are done at this point

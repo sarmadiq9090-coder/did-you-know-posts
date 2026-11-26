@@ -15,8 +15,8 @@
   `tools/reel_previews.py` صورة معاينة (الإطارات، المنطقة الآمنة، قص الشبكة 3:4 والصفحة الرئيسية 1:1).
 - `tools/test_reels.py` + `tests/reel_cases/` سبع حالات اختبار للريلز.
 - القصص: `scripts/publish_story.py` و`tools/make_story.py` و`.github/workflows/stories.yml`.
-  يومياً: 9:53 صباحاً «سؤال اليوم» عن منشور الظهر، و1:20 ظهراً و8:20 مساءً قصة للمنشور الذي نُشر للتو،
-  وكل ريلز يُنشر أيضاً كقصة. لا تُنشر قصة مرتين (state.json → stories). للتجربة بدون نشر:
+  حالياً قصة واحدة يومياً: 9:53 صباحاً «سؤال اليوم» عن منشور الظهر. جاهز للتفعيل لاحقاً: قصص المنشورات
+  (أضف cron "20 10,17 * * *" في stories.yml) والريلز كقصص (REEL_STORY=1 في reels.yml). لا تُنشر قصة مرتين (state.json → stories). للتجربة بدون نشر:
   اكتب `question dry` أو `post dry` في `story_request.txt`.
 - `.github/workflows/reels.yml` نشر ريلزين يومياً، و`reel-preview.yml` معاينات تلقائية في كل Pull Request يغيّر الريلز.
 
