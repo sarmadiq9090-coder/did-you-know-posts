@@ -23,7 +23,7 @@ on:
       - ".github/workflows/reel-preview.yml"
   workflow_dispatch: {}
 permissions:
-  contents: read
+  contents: write     # only used on pushes to fix/** branches, to attach preview images to the "reel-previews" pre-release
 jobs:
   preview:
     runs-on: ubuntu-latest
@@ -44,6 +44,24 @@ jobs:
       - name: Summary
         if: always()
         run: cat reel_test_out/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Preview images on the reel-previews pre-release (viewable without signing in)
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          from PIL import Image
+          out = pathlib.Path("reel_test_out/jpg"); out.mkdir(exist_ok=True)
+          for p in pathlib.Path("reel_test_out").rglob("*.preview.png"):
+              im = Image.open(p).convert("RGB")
+              if im.width > 1600:
+                  im = im.resize((1600, round(im.height * 1600 / im.width)))
+              im.save(out / p.name.replace(".preview.png", ".jpg"), quality=80)
+          PY
+          gh release view reel-previews >/dev/null 2>&1 || gh release create reel-previews --prerelease \
+            --title "Reel previews (tests, not published)" --notes "Preview sheets from the latest reel test run."
+          gh release upload reel-previews reel_test_out/jpg/*.jpg reel_test_out/summary.md --clobber
       - uses: actions/upload-artifact@v4
         if: always()
         with:
