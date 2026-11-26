@@ -1,5 +1,16 @@
 name: Reel preview (no publishing)
 on:
+  push:
+    branches: ["fix/**"]
+    paths:
+      - "tools/make_reel.py"
+      - "tools/validate_reel.py"
+      - "tools/reel_previews.py"
+      - "tools/test_reels.py"
+      - "scripts/publish_reel.py"
+      - "tests/reel_cases/**"
+      - ".github/workflows/reels.yml"
+      - ".github/workflows/reel-preview.yml"
   pull_request:
     paths:
       - "tools/make_reel.py"
