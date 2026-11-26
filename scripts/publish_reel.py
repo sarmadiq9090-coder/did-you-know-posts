@@ -23,6 +23,8 @@ sys.path.insert(0, str(ROOT / "tools"))
 from make_reel import make_reel           # noqa: E402
 from validate_reel import validate         # noqa: E402
 from reel_previews import sheet            # noqa: E402
+sys.path.insert(0, str(ROOT / "scripts"))
+import ig_api                              # noqa: E402
 
 DRY = "--dry-run" in sys.argv
 TOKEN = os.environ.get("IG_TOKEN", "").strip()
@@ -160,11 +162,27 @@ def publish(spec, mp4, cover):
         media = call("GET", media_id, fields="id,media_type,media_product_type,permalink,timestamp")
         if media.get("media_product_type") != "REELS":
             raise ApiError(f"published item is not a reel: {media}")
+        media["story"] = share_as_story(f"{base}/{mp4.name}", mp4)   # video still hosted here
         return media
     finally:
         for f in (mp4, cover):                  # processing and verification are done at this point
             gh("release", "delete-asset", TAG, f.name, "--yes", check=False)
         print("Deleted temporary video and cover")
+
+
+def share_as_story(video_url, mp4):
+    """Also post the reel video as a story (stories allow 3-60 s). A failure never affects the reel."""
+    try:
+        dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                    str(mp4)], capture_output=True, text=True).stdout.strip() or 0)
+        if not 3 <= dur <= 59.5:
+            print(f"Reel is {dur:.1f}s, too long for a story; skipped"); return None
+        story = ig_api.publish_story(video_url=video_url)
+        print("Published reel as story:", story.get("id"))
+        return story.get("id")
+    except Exception as e:
+        print("Story for this reel NOT published (reel is fine):", e)
+        return None
 
 
 def main():
@@ -201,6 +219,8 @@ def main():
             return 1                            # state untouched: the spec stays available
         print("Published reel:", media.get("permalink") or media.get("id"))
         state.setdefault("reeled", []).append(spec_f.stem)
+        if media.get("story"):
+            ig_api.remember_story(state, f"r:{spec_f.stem}")
         state_f.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
         return 0
     print("No spec passed the quality gate." if tried else "No unused spec for a reel.")
