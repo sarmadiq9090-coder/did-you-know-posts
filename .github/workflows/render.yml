@@ -1,7 +1,7 @@
 name: Render new post specs
 on:
   push:
-    paths: ["specs/**"]
+    paths: ["specs/**", "render_request.txt"]
   workflow_dispatch: {}
 permissions:
   contents: write
