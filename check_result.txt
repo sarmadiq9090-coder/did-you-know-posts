@@ -1,4 +1,4 @@
-checked_at: 2026-11-25T21:17:02.972745Z
+checked_at: 2026-11-26T11:25:13.319058Z
 token_prefix: EAAa... length 253
 https://graph.instagram.com/v26.0: ERROR 400 OAuthException Invalid OAuth access token - Cannot parse access token
 https://graph.facebook.com/v26.0: OK {'id': '17841462150090981', 'username': 'did.you.know.iq'}
