@@ -12,5 +12,7 @@
   ],
   "media_ids": {
     "02_honey": "17982438278915110"
-  }
+  },
+  "paused_until": "2026-12-31T00:00+00:00",
+  "pause_reason": "Meta restricted business portfolio 1924251022069416 (automation/integrity) - paused manually until review"
 }
