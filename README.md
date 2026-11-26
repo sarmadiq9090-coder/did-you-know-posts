@@ -14,6 +14,12 @@
 - `tools/make_reel.py` تصميم الريلز والغلاف، `tools/validate_reel.py` فحص الجودة قبل النشر،
   `tools/reel_previews.py` صورة معاينة (الإطارات، المنطقة الآمنة، قص الشبكة 3:4 والصفحة الرئيسية 1:1).
 - `tools/test_reels.py` + `tests/reel_cases/` سبع حالات اختبار للريلز.
+- تصميم المنشورات يتناوب بين 3 قوالب حسب رقم المنشور، والريلز بين 3 أنماط للبطاقة.
+- `tools/check_queue.py` فحص الطابور (الصيغة، الوسوم، تكرار الصور) ويعمل مع كل رسم.
+- `tools/fix_captions.py` توحيد الأوصاف: افتتاحية + سؤال + سطر إرسال 📩 + 5 وسوم بالترتيب.
+- الحماية: فحص حد النشر قبل كل منشور، وإيقاف تلقائي 48 ساعة عند أي حظر (state.json → paused_until)، وتأخير عشوائي 0-25 دقيقة.
+- القياس: `scripts/metrics.py` و`.github/workflows/metrics.yml` يومياً إلى فرع `metrics` (media.csv وaccount.csv وreport.md).
+  الوصول والحفظ والإرسال ومدة المشاهدة تحتاج صلاحية `instagram_manage_insights` في الرمز.
 - القصص: `scripts/publish_story.py` و`tools/make_story.py` و`.github/workflows/stories.yml`.
   حالياً قصة واحدة يومياً: 9:53 صباحاً «سؤال اليوم» عن منشور الظهر. جاهز للتفعيل لاحقاً: قصص المنشورات
   (أضف cron "20 10,17 * * *" في stories.yml) والريلز كقصص (REEL_STORY=1 في reels.yml). لا تُنشر قصة مرتين (state.json → stories). للتجربة بدون نشر:
