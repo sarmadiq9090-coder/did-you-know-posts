@@ -1,7 +1,5 @@
 name: Publish reel
 on:
-  schedule:
-    - cron: "37 12,18 * * *"   # ~3:37pm and 9:37pm Baghdad (UTC+3), between the image slots
   workflow_dispatch:
     inputs:
       dry_run:

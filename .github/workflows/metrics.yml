@@ -1,7 +1,5 @@
 name: Metrics
 on:
-  schedule:
-    - cron: "41 21 * * *"        # 00:41 Baghdad, once a day
   workflow_dispatch: {}
 permissions:
   contents: write

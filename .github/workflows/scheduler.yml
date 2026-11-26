@@ -1,0 +1,40 @@
+name: Scheduler
+# The ONE place with the timetable. GitHub runs a schedule as the person who last edited the cron
+# lines, so this file is edited by the account owner and nobody else (do not let bots change it).
+# Each tick starts the matching workflow; those workflows have no schedule of their own.
+on:
+  schedule:
+    - cron: "7 10,14,17,19 * * *"   # image posts: 1:07pm, 5:07pm, 8:07pm, 10:07pm Baghdad
+    - cron: "37 12,18 * * *"        # reels: 3:37pm, 9:37pm Baghdad
+    - cron: "53 6 * * *"            # story «سؤال اليوم»: 9:53am Baghdad
+    - cron: "40 21 * * *"           # metrics: 00:40 Baghdad
+  workflow_dispatch: {}
+  push:
+    paths: ["scheduler_test.txt"]     # test of the start mechanism: starts the (harmless) metrics job
+permissions:
+  actions: write
+  contents: read
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Start the job for this time slot
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SLOT: ${{ github.event.schedule }}
+        run: |
+          case "$SLOT" in
+            "7 10,14,17,19 * * *") wf=publish.yml; args="" ;;
+            "37 12,18 * * *")      wf=reels.yml;   args="-f dry_run=false" ;;
+            "53 6 * * *")          wf=stories.yml; args="-f kind=question -f dry_run=false" ;;
+            "40 21 * * *")         wf=metrics.yml; args="" ;;
+            "") if [ "${{ github.event_name }}" = "push" ]; then wf=metrics.yml; args=""; else echo "manual run: nothing to start"; exit 0; fi ;;
+            *) echo "unknown slot: $SLOT"; exit 1 ;;
+          esac
+          if [ "$wf" != "metrics.yml" ]; then
+            d=$(( RANDOM % 1500 )); echo "random delay ${d}s so posts are not robot-exact"; sleep "$d"
+          fi
+          gh workflow run "$wf" --repo "$REPO" --ref main $args
+          echo "started $wf"

@@ -1,8 +1,6 @@
 name: Publish daily post
 
 on:
-  schedule:
-    - cron: "7 10,14,17,19 * * *"   # ~1pm, 5pm, 8pm, 10pm Baghdad (UTC+3) — peak hours for Iraqi/Arab audience
   workflow_dispatch: {}     # manual "Run workflow" button for testing
   push:
     paths: ["publish_request.txt"]   # Claude can trigger a publish by updating this file
