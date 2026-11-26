@@ -1,0 +1,35 @@
+name: Metrics
+on:
+  schedule:
+    - cron: "41 21 * * *"        # 00:41 Baghdad, once a day
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency:
+  group: metrics
+  cancel-in-progress: false
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Open the metrics branch (created on first run)
+        run: |
+          git config user.name "post-bot"; git config user.email "post-bot@users.noreply.github.com"
+          if git fetch -q origin metrics:metrics 2>/dev/null; then
+            git worktree add -q m metrics
+          else
+            git worktree add -q --detach m && git -C m checkout -q --orphan metrics && git -C m rm -rf -q . || true
+          fi
+      - name: Collect numbers (aggregates only, never tokens)
+        env:
+          IG_TOKEN: ${{ secrets.IG_TOKEN }}
+        run: python3 scripts/metrics.py m
+      - name: Save and summarise
+        run: |
+          cat m/report.md >> "$GITHUB_STEP_SUMMARY"
+          git -C m add -A
+          git -C m diff --cached --quiet && exit 0
+          git -C m commit -q -m "Metrics $(date -u +%F)"
+          git -C m push -q origin metrics
