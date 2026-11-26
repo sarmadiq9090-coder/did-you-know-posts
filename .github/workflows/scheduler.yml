@@ -29,7 +29,7 @@ jobs:
             "7 10,14,17,19 * * *") wf=publish.yml; args="" ;;
             "37 12,18 * * *")      wf=reels.yml;   args="-f dry_run=false" ;;
             "53 6 * * *")          wf=stories.yml; args="-f kind=question -f dry_run=false" ;;
-            "40 21 * * *")         wf=metrics.yml; args="" ;;
+            "41 21 * * *")         wf=metrics.yml; args="" ;;
             "") if [ "${{ github.event_name }}" = "push" ]; then wf=metrics.yml; args=""; else echo "manual run: nothing to start"; exit 0; fi ;;
             *) echo "unknown slot: $SLOT"; exit 1 ;;
           esac
