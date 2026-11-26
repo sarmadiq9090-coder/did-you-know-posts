@@ -98,3 +98,48 @@ def remember_story(state, key, keep=150):
     s = state.setdefault("stories", [])
     s.append(key)
     del s[:-keep]
+
+
+# ---------------------------------------------------------------- account safety
+import datetime as _dt
+
+
+def _now():
+    return _dt.datetime.now(_dt.timezone.utc)
+
+
+def is_paused(state):
+    """Publishing is paused after a block/limit error until state['paused_until'] (UTC ISO)."""
+    until = state.get("paused_until")
+    if until and _dt.datetime.fromisoformat(until) > _now():
+        print(f"Publishing paused until {until} ({state.get('pause_reason', '')}). Skipping.")
+        return True
+    return False
+
+
+def classify_error(msg):
+    """Return hours to pause for errors that mean 'stop for a while', else None."""
+    m = str(msg).lower()
+    if "2207051" in m or '"code":368' in m or "code 368" in m or "blocked" in m or "spam" in m:
+        return 48
+    if "2207042" in m or "rate limited" in m or "maximum number of posts" in m:
+        return 24
+    return None
+
+
+def pause(state, hours, reason):
+    state["paused_until"] = (_now() + _dt.timedelta(hours=hours)).isoformat(timespec="minutes")
+    state["pause_reason"] = str(reason)[:200]
+    print(f"::warning::Publishing paused for {hours} h: {str(reason)[:200]}")
+
+
+def quota_ok(margin=3):
+    """Check the 24-hour content publishing limit before creating a container."""
+    try:
+        d = call("GET", f"{IG_ID}/content_publishing_limit", fields="quota_usage,config")["data"][0]
+        used, total = d.get("quota_usage", 0), (d.get("config") or {}).get("quota_total", 50)
+        print(f"Publishing quota: {used}/{total} in the last 24 h")
+        return used < total - margin
+    except Exception as e:                       # never block publishing because the check itself failed
+        print("Quota check unavailable:", str(e)[:200])
+        return True

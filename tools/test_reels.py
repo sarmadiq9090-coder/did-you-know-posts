@@ -16,7 +16,8 @@ from reel_previews import sheet           # noqa: E402
 
 LOCAL = {"1_one_photo": ["landscape"], "2_two_photos": ["portrait", "square"],
          "3_three_photos": ["landscape", "portrait", "square"], "4_long_text": ["portrait", "landscape"],
-         "5_short_text": ["square"], "6_mixed_ratios": ["panorama", "tall", "landscape"], "7_no_photos": []}
+         "5_short_text": ["square"], "6_mixed_ratios": ["panorama", "tall", "landscape"], "7_no_photos": [],
+         "8_question_hook": ["portrait", "square"]}
 
 
 def main(argv):

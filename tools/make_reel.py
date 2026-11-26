@@ -34,64 +34,98 @@ SAFE = (120, 270, W - 120, H - 672)          # x0, y0, x1, y1  -> 840 x 978 px
 # and the middle 3:4 rectangle (profile grid crop, y 240..1680).
 HOOK = (120, 440, W - 120, 1230)
 
-HOOK_DUR, CTA_DUR, MIN_SCENE = 2.8, 2.8, 3.4
-XFADE = 0.8
+HOOK_DUR, CTA_DUR, MIN_SCENE = 2.0, 2.2, 2.6
+XFADE = 0.6
+SEG = 3.5                   # a new photo or camera move about every 3.5 s
+SEC_PER_WORD, SEC_PER_SCENE = 0.32, 0.9
+_STYLE = [0]                # card style of the reel being rendered (0 glass, 1 solid, 2 light)
 PALETTE = [("#071C30", "#123D59"), ("#082D24", "#175344"), ("#20102F", "#48275F"), ("#300D1B", "#641D35"),
            ("#261B12", "#594026"), ("#111827", "#303B49"), ("#09282E", "#16505C"), ("#101010", "#292929")]
 
 
 # ---------------------------------------------------------------- music (royalty-free, generated)
+# Calm background bed for reading: slow tempo, soft attacks, mid register (audible on phone speakers),
+# no sharp transients, normalised later to about -20 LUFS so it never competes with the text.
 NOTE = {n: i for i, n in enumerate("C C# D D# E F F# G G# A A# B".split())}
-PROGRESSIONS = [[0, 7, 9, 5], [9, 5, 0, 7], [0, 5, 9, 7], [2, 7, 0, 9], [0, 9, 5, 7]]
+PROGRESSIONS = [[0, 7, 9, 5], [9, 5, 0, 7], [0, 5, 9, 7], [2, 7, 0, 9], [0, 9, 5, 7], [5, 0, 7, 9]]
 MINOR = {9, 2, 4}
+MOODS = ["pad_bells", "soft_piano", "ambient"]
 
 
 def freq(midi):
     return 440.0 * 2 ** ((midi - 69) / 12)
 
 
+def _env(n, attack, release, total):
+    t = np.arange(n) / SR
+    a = np.clip(t / attack, 0, 1)
+    r = np.clip((total - t) / release, 0, 1)
+    return np.sin(a * np.pi / 2) ** 2 * r          # smooth (no clicks)
+
+
 def make_music(path, rng, dur):
-    key = NOTE[rng.choice(["C", "D", "E", "F", "G", "A"])] + 48
+    mood = rng.choice(MOODS)
+    key = NOTE[rng.choice(["C", "D", "E", "F", "G", "A"])] + 52          # around E3..A3
     prog = rng.choice(PROGRESSIONS)
-    bpm = rng.choice([72, 80, 88, 96])
+    bpm = rng.choice([64, 70, 76, 80])
     beat = 60 / bpm
     n = int(round(SR * dur))
-    t = np.arange(n) / SR
     out = np.zeros(n)
-    n_chords = max(4, round(dur / (4 * beat)))
+    n_chords = max(3, round(dur / (4 * beat)))
     chord_len = dur / n_chords
+    nrng = np.random.default_rng(rng.randint(0, 10**6))
     for ci in range(n_chords):
         root = prog[ci % len(prog)]
         quality = [0, 3, 7] if (root % 12) in MINOR else [0, 4, 7]
-        s, e = int(ci * chord_len * SR), min(int(((ci + 1) * chord_len + 1.2) * SR), n)
-        tt = t[s:e] - t[s]
-        env = np.minimum(1, tt / 0.8) * np.exp(-np.maximum(0, tt - chord_len) / 0.6)
-        for q in quality + [12]:
+        s = int(ci * chord_len * SR)
+        L = min(int((chord_len + 1.5) * SR), n - s)
+        if L <= 0:
+            continue
+        t = np.arange(L) / SR
+        # warm pad: detuned sines, slow swell, gentle tremolo
+        env = _env(L, 1.2, 1.4, L / SR) * (0.9 + 0.1 * np.sin(2 * np.pi * 0.25 * t))
+        for q in quality:
             f = freq(key + root + q)
-            for det in (-0.12, 0.12):
-                out[s:e] += 0.05 * env * np.sin(2 * np.pi * f * (1 + det / 100) * tt)
-        out[s:e] += 0.08 * env * np.sin(2 * np.pi * freq(key + root - 12) * tt)
-        step, k = beat / 2, 0
-        while k * step < chord_len:
-            q = (quality + [12, 7])[k % 5]
+            for det in (-0.08, 0.08):
+                out[s:s + L] += 0.040 * env * np.sin(2 * np.pi * f * (1 + det / 100) * t)
+        out[s:s + L] += 0.030 * env * np.sin(2 * np.pi * freq(key + root - 12) * t)   # soft bass, not boomy
+        if mood == "ambient":
+            continue
+        # sparse melody: quarter notes, some skipped, bell/piano-like decay
+        step = beat if mood == "pad_bells" else beat * 2
+        k = 0
+        while k * step < chord_len - 0.2:
+            if nrng.random() < (0.35 if mood == "pad_bells" else 0.2):
+                k += 1; continue
+            q = (quality + [12])[nrng.integers(0, 4)]
             ps = s + int(k * step * SR)
-            pe = min(ps + int(1.2 * SR), n)
-            if ps < n:
-                pt = t[ps:pe] - t[ps]
+            pl = min(int(2.2 * SR), n - ps)
+            if pl > 0:
+                pt = np.arange(pl) / SR
                 f = freq(key + 12 + root + q)
-                out[ps:pe] += 0.045 * np.exp(-pt * 4.5) * (np.sin(2 * np.pi * f * pt) + 0.3 * np.sin(4 * np.pi * f * pt))
+                decay = np.exp(-pt * (2.2 if mood == "pad_bells" else 1.6))
+                att = np.clip(pt / 0.012, 0, 1)                     # 12 ms attack: soft, no click
+                tone = np.sin(2 * np.pi * f * pt) + 0.12 * np.sin(4 * np.pi * f * pt)
+                out[ps:ps + pl] += 0.028 * att * decay * tone
             k += 1
-    ir_len = int(0.9 * SR)
-    ir = np.random.default_rng(rng.randint(0, 10**6)).standard_normal(ir_len) * np.exp(-np.arange(ir_len) / (0.25 * SR))
+    # light room reverb
+    ir_len = int(1.2 * SR)
+    ir = nrng.standard_normal(ir_len) * np.exp(-np.arange(ir_len) / (0.35 * SR))
     wet = np.fft.irfft(np.fft.rfft(out, n + ir_len) * np.fft.rfft(ir, n + ir_len))[:n]
-    out = out + 0.012 * wet
-    fi, fo = int(0.3 * SR), int(1.5 * SR)
-    out[:fi] *= np.linspace(0, 1, fi)
-    out[-fo:] *= np.linspace(1, 0, fo)
-    out = out / (np.max(np.abs(out)) + 1e-9) * 0.55
+    out = out + 0.010 * wet
+    # gentle tone shaping: remove rumble below ~70 Hz and soften above ~4 kHz
+    F = np.fft.rfft(out); fr = np.fft.rfftfreq(n, 1 / SR)
+    F *= 1 / np.sqrt(1 + (70 / np.maximum(fr, 1)) ** 4)
+    F *= 1 / np.sqrt(1 + (fr / 4000) ** 4)
+    out = np.fft.irfft(F, n)
+    fi, fo = int(0.8 * SR), int(1.4 * SR)
+    out[:fi] *= np.sin(np.linspace(0, np.pi / 2, fi)) ** 2
+    out[-fo:] *= np.cos(np.linspace(0, np.pi / 2, fo)) ** 2
+    out = out / (np.max(np.abs(out)) + 1e-9) * 0.5      # final level is set by loudnorm in the encoder
     pcm = (np.stack([out, out], axis=1) * 32767).astype(np.int16)
     with wave.open(str(path), "wb") as w:
         w.setnchannels(2); w.setsampwidth(2); w.setframerate(SR); w.writeframes(pcm.tobytes())
+    return mood
 
 
 # ---------------------------------------------------------------- text helpers
@@ -234,20 +268,32 @@ def scene_css(c1):
 .cta .l1 {{ color:#fff; font-size:64px; font-weight:900; line-height:1.4; }}
 .cta .l2 {{ color:#ffcc33; font-size:50px; font-weight:800; margin-top:18px; }}
 .cta .l3 {{ color:rgba(255,255,255,.95); font-size:46px; font-weight:800; margin-top:14px; direction:ltr; }}
-"""
+""" + STYLE_CSS[_STYLE[0]](c1)
 
 
-def hook_html(title, fs, emoji, attrs=""):
+STYLE_CSS = [
+    lambda c1: "",                                                    # 0: translucent card (default)
+    lambda c1: f""".card {{ background:{rgba(c1, .96)}; border:none; border-inline-start:12px solid #ffcc33; border-radius:28px; }}
+.hook .title {{ background:{rgba(c1, .96)}; border-inline-start:10px solid #ffcc33; border-radius:24px; }}""",
+    lambda c1: f""".card {{ background:rgba(255,255,255,.94); border:none; }}
+.card .txt {{ color:#1d1d1d; text-shadow:none; }} .card b {{ color:#a86b00; }}
+.card .lab {{ color:#a86b00; }} .dots i {{ background:rgba(0,0,0,.18); }} .dots i.on {{ background:#a86b00; }}
+.hook .title {{ background:rgba(255,255,255,.94); color:#1d1d1d; box-shadow:0 14px 40px rgba(0,0,0,.35); }}""",
+]
+
+
+def hook_html(title, fs, emoji, attrs="", question=False):
     hemo = f'<div class="emo hemo">{html.escape(emoji)}</div>' if emoji else ""
+    label = '<span class="emo">🤔</span> خمّن…' if question else '<span class="emo">💡</span> هل تعلم؟'
     return f"""<div class="hook" id="hook" {attrs} style="--fs:{fs}px"><div class="hin" data-m>{hemo}
-  <div class="big"><span class="emo">💡</span> هل تعلم؟</div>
+  <div class="big">{label}</div>
   <div class="title">{html.escape(title)}</div>
   <div class="handle">@did.you.know.iq</div></div></div>"""
 
 
 CTA_HTML = """<div class="cta"><div class="box" id="cta">
-  <div class="l1"><span class="emo">🔖</span> احفظ المعلومة<br>وشاركها مع من تحب</div>
-  <div class="l2">تابعنا لمعلومة جديدة كل يوم</div>
+  <div class="l1"><span class="emo">📩</span> أرسلها لصديق<br>لا يعرف هذه المعلومة</div>
+  <div class="l2">وتابعنا لمعلومة جديدة كل يوم</div>
   <div class="l3">@did.you.know.iq</div></div></div>"""
 
 FIT_JS = """<pre id="out"></pre><script>
@@ -268,7 +314,7 @@ document.fonts.ready.then(() => {
 </script>"""
 
 
-def fit(spec_title, scenes, c1, emoji):
+def fit(spec_title, scenes, c1, emoji, question=False):
     """Pick the largest font size for every scene that keeps it inside its box. None = does not fit."""
     parts = []
     text_sizes = list(range(70, 43, -2))
@@ -276,7 +322,7 @@ def fit(spec_title, scenes, c1, emoji):
         parts.append(f'<div class="zone" data-fit data-sizes=\'{json.dumps(text_sizes)}\' data-maxh="{SAFE[3]-SAFE[1]}" id="s{i}">'
                      + card_html(f"c{i}", rich(s), 70, c1, i, len(scenes)).replace('class="card"', 'class="card" data-m', 1)
                      + "</div>")
-    hook = hook_html(spec_title, 64, emoji, f"data-fit data-sizes='{json.dumps(list(range(66, 43, -2)))}' "
+    hook = hook_html(spec_title, 64, emoji, question=question, attrs=f"data-fit data-sizes='{json.dumps(list(range(66, 43, -2)))}' "
                                             f'data-maxh="{HOOK[3]-HOOK[1]}"')
     page = f"""<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>{CSS}{scene_css(c1)}</style></head>
 <body>{''.join(parts)}{hook}{FIT_JS}</body></html>"""
@@ -342,13 +388,13 @@ body {{ background: linear-gradient(165deg, {c2} 0%, {c1} 62%, {c2} 100%); }}
     im.crop((0, 0, W * SS, H * SS)).save(png)
 
 
-def motion_filter(idx, room, frames, rng):
+def motion_filter(idx, room, frames, rng, force=None):
     """Filter for one background segment. Input is a single prepared image (>= 2x frame)."""
     rx, ry = room
     fw, fh = W * SS, H * SS
     d = frames
     big = max(rx / fw, ry / fh)
-    kind = rng.choice(["pan", "pan", "zoomin", "zoomout"]) if big > 0.15 else rng.choice(["zoomin", "zoomout"])
+    kind = force or (rng.choice(["pan", "pan", "zoomin", "zoomout"]) if big > 0.15 else rng.choice(["zoomin", "zoomout"]))
     if kind == "pan":
         # slide across part of the extra width/height, centred on the middle of the photo
         if rx >= ry:
@@ -380,7 +426,10 @@ def make_reel(spec_path, out_mp4, local_photos=None, cover_out=None):
     c1, c2 = spec.get("colors") or rng.choice(PALETTE)
     emoji = spec.get("emoji") or "💡"
     title = hook_title(spec)
-    meta = {"spec": spec_path.name, "title": title, "photos_expected": len((spec.get("photos") or [])[:3]),
+    question = re.sub(r"^\s*خم[ّ]?ن\s*[:：،]?\s*", "", (spec.get("question") or "").strip())   # label already says «خمّن…»
+    hook_text = question or title                      # «خمّن…؟» hook when the spec has a question
+    _STYLE[0] = int(re.match(r"(\d+)", spec_path.stem).group(1)) % 3 if re.match(r"\d+", spec_path.stem) else seed % 3
+    meta = {"spec": spec_path.name, "title": title, "hook": hook_text, "style": _STYLE[0], "photos_expected": len((spec.get("photos") or [])[:3]),
             "photos_loaded": 0, "photo_errors": [], "scenes": [], "safe": SAFE, "hook_box": HOOK, "fit_ok": True}
 
     with tempfile.TemporaryDirectory() as td:
@@ -411,7 +460,7 @@ def make_reel(spec_path, out_mp4, local_photos=None, cover_out=None):
         # ---- plan scenes and fit text
         scenes = split_scenes(spec["text"])
         for _ in range(4):
-            fits = fit(title, scenes, c1, emoji if not meta["photos_loaded"] else "")
+            fits = fit(hook_text, scenes, c1, emoji if not meta["photos_loaded"] else "", bool(question))
             bad = [i for i in range(len(scenes)) if not fits.get(f"s{i}", {}).get("size")]
             if not bad:
                 break
@@ -428,7 +477,7 @@ def make_reel(spec_path, out_mp4, local_photos=None, cover_out=None):
         timeline = [("hook", 0.0, HOOK_DUR)]
         t = HOOK_DUR
         for i, s in enumerate(scenes):
-            d = max(MIN_SCENE, 0.40 * words(s) + 1.4)
+            d = max(MIN_SCENE, SEC_PER_WORD * words(s) + SEC_PER_SCENE)
             timeline.append((f"s{i}", t, t + d)); t += d
         timeline.append(("cta", t, t + CTA_DUR)); t += CTA_DUR
         dur = round(t, 2)
@@ -438,7 +487,7 @@ def make_reel(spec_path, out_mp4, local_photos=None, cover_out=None):
         scrim = td / "scrim.png"; scrim_layer(c1, scrim)
         layers = []
         hook_png = td / "hook.png"
-        bb = layer(hook_html(title, hook_fs, emoji if not meta["photos_loaded"] else ""), c1, hook_png)
+        bb = layer(hook_html(hook_text, hook_fs, emoji if not meta["photos_loaded"] else "", question=bool(question)), c1, hook_png)
         layers.append(("hook", hook_png, 0.0, HOOK_DUR, bb, hook_fs))
         for i, s in enumerate(scenes):
             fs = fits.get(f"s{i}", {}).get("size") or 44
@@ -464,34 +513,37 @@ def make_reel(spec_path, out_mp4, local_photos=None, cover_out=None):
         cover.convert("RGB").save(cover_out, "JPEG", quality=90, optimize=True)
         meta["cover"] = cover_out.name
 
-        # ---- background segments (one per photo), switching on scene borders
+        # ---- background: a new photo or camera move about every SEG seconds, cycling the photos.
+        # The first segment starts on the cover framing (zoom in from 1.0) and the last one is photo 0
+        # zooming back out to it, so the end flows into the start when the reel loops.
         k = len(prepared)
-        borders = [a for name, a, b in timeline[1:]]
-        switches = []
-        for j in range(1, k):
-            ideal = j * dur / k
-            s = min(borders, key=lambda x: abs(x - ideal)) if borders else ideal
-            if abs(s - ideal) > 2.5 or (switches and s - switches[-1] < 3) or s in switches:
-                s = ideal
-            switches.append(s)
-        starts = [0.0] + [s - XFADE / 2 for s in switches]
-        ends = [s + XFADE / 2 for s in switches] + [dur]
-        music = td / "music.wav"; make_music(music, rng, dur)
+        nseg = max(k, int(round(dur / SEG)))
+        seq = [j % k for j in range(nseg)]
+        if nseg > 1 and k > 1 and seq[-1] != 0:
+            seq[-1] = 0
+            if seq[-2] == 0:
+                seq[-2] = 1
+        switches = [j * dur / nseg for j in range(1, nseg)]
+        starts = [0.0] + [x - XFADE / 2 for x in switches]
+        ends = [x + XFADE / 2 for x in switches] + [dur]
+        music = td / "music.wav"; meta["music"] = make_music(music, rng, dur)
 
         cmd = ["ffmpeg", "-y", "-loglevel", "error"]
         fc = []
-        for j, (img, room) in enumerate(prepared):
+        for j in range(nseg):
+            img, room = prepared[seq[j]]
             cmd += ["-framerate", str(FPS), "-i", str(img)]
             frames = int(math.ceil((ends[j] - starts[j]) * FPS)) + 2
-            f, kind = motion_filter(j, room, frames, rng)
+            force = "zoomin" if j == 0 else ("zoomout" if j == nseg - 1 and nseg > 1 else None)
+            f, kind = motion_filter(j, room, frames, rng, force)
             fc.append(f + f",settb=1/{FPS},trim=end_frame={frames}[bg{j}]")
             meta.setdefault("motions", []).append(kind)
         last = "bg0"
-        for j in range(1, k):
+        for j in range(1, nseg):
             tr = rng.choice(["fade", "smoothleft", "smoothright", "circleopen", "dissolve"])
             fc.append(f"[{last}][bg{j}]xfade=transition={tr}:duration={XFADE}:offset={starts[j]:.3f}[xb{j}]")
             last = f"xb{j}"
-        n_in = k
+        n_in = nseg
         cmd += ["-loop", "1", "-framerate", str(FPS), "-t", f"{dur}", "-i", str(scrim)]
         fc.append(f"[{n_in}:v]format=rgba[scr]")
         fc.append(f"[{last}][scr]overlay=0:0:format=auto[v0]")
@@ -511,7 +563,8 @@ def make_reel(spec_path, out_mp4, local_photos=None, cover_out=None):
         # photos are full-range JPEG (yuvj420p); deliver standard limited-range BT.709 yuv420p
         fc.append(f"[{cur}]scale=out_range=tv:out_color_matrix=bt709,format=yuv420p,setsar=1:1[v]")
         cmd += ["-i", str(music)]
-        cmd += ["-filter_complex", ";".join(fc), "-map", "[v]", "-map", f"{n_in}:a",
+        fc.append(f"[{n_in}:a]loudnorm=I=-20:TP=-2:LRA=7,aresample={SR}[a]")   # calm, consistent level
+        cmd += ["-filter_complex", ";".join(fc), "-map", "[v]", "-map", "[a]",
                 "-t", f"{dur}", "-r", str(FPS),
                 "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-profile:v", "high", "-level:v", "4.1",
                 "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709",

@@ -18,8 +18,11 @@ concurrency:
 jobs:
   reel:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
+      - name: Random delay (scheduled runs only, 0-25 min) so posts are not robot-exact
+        if: github.event_name == 'schedule'
+        run: sleep $(( RANDOM % 1500 ))
       - uses: actions/checkout@v4
       - name: Install tools
         run: |

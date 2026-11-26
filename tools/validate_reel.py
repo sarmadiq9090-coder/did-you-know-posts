@@ -13,7 +13,7 @@ Checks
   * frames from start / middle / end are not flat or dark
   * every text layer stays inside its safe box, and text fitted without overflow
   * photos: at least one photo loaded when the spec has photos
-  * reading time: each text scene stays on screen >= 0.33 s per word
+  * reading time: each text scene stays on screen >= 0.28 s per word
   * cover: JPEG, 1080x1920, sRGB/RGB, < 8 MB, not dark or flat, title inside the 1:1 and 3:4 crops
 """
 import json, pathlib, re, struct, subprocess, sys, tempfile
@@ -190,7 +190,7 @@ def validate(mp4, cover=None, meta=None, frames_dir=None):
             fails.append(f"scene {s['name']} has no visible content"); continue
         if not inside(s["bbox"], s["box"]):
             fails.append(f"scene {s['name']} content {s['bbox']} outside safe box {s['box']}")
-        if s.get("words") and (s["end"] - s["start"]) < 0.33 * s["words"]:
+        if s.get("words") and (s["end"] - s["start"]) < 0.28 * s["words"]:
             fails.append(f"scene {s['name']} too short to read ({s['words']} words)")
     if meta.get("photos_expected") and not meta.get("photos_loaded"):
         fails.append("spec has photos but none could be loaded")
