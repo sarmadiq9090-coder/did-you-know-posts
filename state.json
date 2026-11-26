@@ -1,18 +1,70 @@
 {
   "published": [
     "posts/01_octopus.jpg",
-    "posts/02_honey.jpg"
+    "posts/02_honey.jpg",
+    "posts/03_sun.jpg",
+    "posts/04_giraffe.jpg",
+    "posts/05_heart.jpg",
+    "posts/06_cleopatra.jpg",
+    "posts/07_strawberry.jpg",
+    "posts/08_lightning.jpg",
+    "posts/09_hummingbird.jpg",
+    "posts/10_babylon_60.jpg",
+    "posts/11_eiffel.jpg",
+    "posts/12_koala.jpg",
+    "posts/13_sharks_trees.jpg",
+    "posts/14_baby_bones.jpg",
+    "posts/15_coffee.jpg",
+    "posts/16_venus.jpg",
+    "posts/17_mesopotamia.jpg",
+    "posts/18_ocean.jpg",
+    "posts/19_saliva.jpg",
+    "posts/20_penny.jpg",
+    "posts/21_skin.jpg",
+    "posts/22_seismology.jpg",
+    "posts/23_smell.jpg",
+    "posts/024_great_pyramid_height.jpg",
+    "posts/26_lunar_recession.jpg",
+    "posts/27_cornea.jpg",
+    "posts/28_gorilla.jpg",
+    "posts/29_sauna.jpg",
+    "posts/30_fiber.jpg"
   ],
   "reeled": [
     "025_lightning_per_day",
-    "45_flytrap"
+    "45_flytrap",
+    "165_vocal",
+    "164_thyroid",
+    "163_glass",
+    "162_placebo",
+    "161_earpressure",
+    "160_sugar",
+    "159_sloth",
+    "158_passengers",
+    "157_handed",
+    "156_giants",
+    "155_handwriting",
+    "154_spacelens",
+    "153_terraces"
   ],
   "stories": [
-    "q:02_honey"
+    "q:02_honey",
+    "q:06_cleopatra",
+    "q:10_babylon_60",
+    "q:14_baby_bones",
+    "q:18_ocean",
+    "q:22_seismology",
+    "q:27_cornea"
   ],
   "media_ids": {
     "02_honey": "17982438278915110"
   },
-  "paused_until": "2027-12-31T00:00+00:00",
-  "pause_reason": "manual mode: owner publishes from browser"
+  "paused_until": "2026-12-02T21:00+00:00",
+  "pause_reason": "26 Nov - 2 Dec scheduled manually in Meta Business Suite; API resumes 3 Dec",
+  "manual_scheduled": {
+    "range": "2026-11-26..2026-12-02",
+    "images": 27,
+    "reels": 13,
+    "stories": 6
+  }
 }
