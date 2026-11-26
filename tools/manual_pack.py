@@ -25,8 +25,12 @@ def shrink(src, dst):
         subprocess.run(cmd, check=True)
 
 state = json.loads((ROOT / "state.json").read_text(encoding="utf-8"))
+r = p.gh("release", "view", TAG, "--json", "assets", check=False)
+packed = {a["name"].split(".")[0] for a in json.loads(r.stdout or "{}").get("assets", [])} if r.returncode == 0 else set()
 files, done = [], []
 for spec_f in p.candidates(state):
+    if spec_f.stem in packed:
+        continue
     if len(done) >= N:
         break
     ok, mp4, cover, fails = p.render_and_check(spec_f)

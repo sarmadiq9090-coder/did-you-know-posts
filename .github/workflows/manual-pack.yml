@@ -22,7 +22,8 @@ jobs:
       - name: Render and upload pack
         env:
           GH_TOKEN: ${{ github.token }}
-          PACK_REELS: ${{ inputs.reels || '2' }}
+          PACK_REELS: ${{ inputs.reels }}
         run: |
           export REEL_OUT="$RUNNER_TEMP/pack"
+          [ -z "$PACK_REELS" ] && PACK_REELS=$(tr -dc 0-9 < pack_request.txt) && export PACK_REELS
           python3 tools/manual_pack.py
