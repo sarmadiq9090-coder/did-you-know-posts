@@ -7,7 +7,7 @@ on:
     - cron: "7 10,14,17,19 * * *"   # image posts: 1:07pm, 5:07pm, 8:07pm, 10:07pm Baghdad
     - cron: "37 12,18 * * *"        # reels: 3:37pm, 9:37pm Baghdad
     - cron: "53 6 * * *"            # story «سؤال اليوم»: 9:53am Baghdad
-    - cron: "40 21 * * *"           # metrics: 00:40 Baghdad
+    - cron: "41 21 * * *"           # metrics: 00:40 Baghdad
   workflow_dispatch: {}
   push:
     paths: ["scheduler_test.txt"]     # test of the start mechanism: starts the (harmless) metrics job
