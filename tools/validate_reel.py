@@ -85,12 +85,14 @@ def validate(mp4, cover=None, meta=None, frames_dir=None):
     if v:
         rep["video"] = {k: v.get(k) for k in ("codec_name", "profile", "width", "height", "sample_aspect_ratio",
                                               "display_aspect_ratio", "pix_fmt", "r_frame_rate", "avg_frame_rate",
-                                              "field_order", "duration", "bit_rate")}
+                                              "field_order", "color_range", "color_space", "duration", "bit_rate")}
         exp = {"codec_name": "h264", "width": W, "height": H, "sample_aspect_ratio": "1:1",
                "display_aspect_ratio": "9:16", "pix_fmt": "yuv420p", "r_frame_rate": "30/1", "avg_frame_rate": "30/1"}
         for k, want in exp.items():
             if v.get(k) != want:
                 fails.append(f"video {k} is {v.get(k)!r}, expected {want!r}")
+        if v.get("color_range") == "pc":
+            fails.append("video is full range (pc); Instagram expects limited range (tv)")
         if v.get("field_order") not in (None, "progressive"):
             fails.append(f"video is not progressive ({v.get('field_order')})")
         if int(v.get("bit_rate") or 0) > 25_000_000:

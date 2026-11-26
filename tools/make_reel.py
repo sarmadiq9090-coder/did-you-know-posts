@@ -508,12 +508,14 @@ def make_reel(spec_path, out_mp4, local_photos=None, cover_out=None):
             y = "0" if name == "hook" else f"'if(lt(t-{a:.3f},0.45),34*(1-(t-{a:.3f})/0.45),0)'"
             fc.append(f"[{cur}][l{li}]overlay=x=0:y={y}:format=auto:enable='between(t,{a:.3f},{b:.3f})'[v{li+1}]")
             cur = f"v{li+1}"; n_in += 1
-        fc.append(f"[{cur}]format=yuv420p,setsar=1:1[v]")
+        # photos are full-range JPEG (yuvj420p); deliver standard limited-range BT.709 yuv420p
+        fc.append(f"[{cur}]scale=out_range=tv:out_color_matrix=bt709,format=yuv420p,setsar=1:1[v]")
         cmd += ["-i", str(music)]
         cmd += ["-filter_complex", ";".join(fc), "-map", "[v]", "-map", f"{n_in}:a",
                 "-t", f"{dur}", "-r", str(FPS),
                 "-c:v", "libx264", "-preset", "fast", "-crf", "20", "-profile:v", "high", "-level:v", "4.1",
-                "-pix_fmt", "yuv420p", "-g", str(FPS * 2), "-x264-params", "open-gop=0",
+                "-pix_fmt", "yuv420p", "-color_range", "tv", "-colorspace", "bt709",
+                "-color_primaries", "bt709", "-color_trc", "bt709", "-g", str(FPS * 2), "-x264-params", "open-gop=0",
                 "-maxrate", "12M", "-bufsize", "24M",
                 "-c:a", "aac", "-b:a", "128k", "-ar", str(SR), "-ac", "2",
                 "-use_editlist", "0", "-movflags", "+faststart", str(out_mp4)]
