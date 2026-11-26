@@ -19,8 +19,6 @@ jobs:
   reel:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      REEL_OUT: ${{ runner.temp }}/reel_out
     steps:
       - uses: actions/checkout@v4
       - name: Install tools
@@ -31,6 +29,7 @@ jobs:
         env:
           IG_TOKEN: ${{ secrets.IG_TOKEN }}
           GH_TOKEN: ${{ github.token }}
+          REEL_OUT: ${{ runner.temp }}/reel_out
         run: python3 scripts/publish_reel.py ${{ inputs.dry_run && '--dry-run' || '' }}
       - name: Keep previews and report (3 days)
         if: always()
