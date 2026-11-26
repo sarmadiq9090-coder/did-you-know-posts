@@ -32,6 +32,27 @@ def clean(text):
     return re.sub(r"&lt;(/?)b&gt;", r"<\1b>", t)
 
 
+LAYOUT1_CSS = """
+body.l1 { background: linear-gradient(to bottom, rgba(0,0,0,0) 22%, {C1A} 48%, {C1} 100%), url({BG}) center/cover; }
+body.l1 .grid, body.l1 .hero { display:none; }
+body.l1 .card::before { content:''; flex:1; }
+body.l1 .label { margin-top:0; }
+body.l1 .text { text-shadow:0 2px 10px rgba(0,0,0,.55); }
+body.l1 .foot { margin-top:22px; }
+"""
+LAYOUT2_CSS = """
+body.l2 .label { order:1; margin-top:4px; }
+body.l2 .text { order:2; }
+body.l2 .grid, body.l2 .hero { order:3; margin-top:auto; height:560px; }
+body.l2 .foot { order:4; margin-top:22px; }
+"""
+
+
+def rgba(hex_color, a):
+    h = hex_color.lstrip("#")
+    return f"rgba({int(h[0:2], 16)},{int(h[2:4], 16)},{int(h[4:6], 16)},{a})"
+
+
 def build_html(spec, idx):
     c1, c2 = spec.get("colors") or PALETTES[idx % len(PALETTES)]
     photos = []
@@ -46,6 +67,13 @@ def build_html(spec, idx):
         top = f'<div class="grid {cls}">{tiles}</div>'
     else:
         top = f'<div class="hero">{html.escape(spec.get("emoji", "💡"))}</div>'
+    # 3 alternating layouts so the grid does not repeat one template (originality):
+    # 0 photos on top / 1 full-bleed photo with the text over a gradient / 2 text first, photos below
+    layout = spec.get("_layout", 0)
+    if layout == 1 and not photos:
+        layout = 0
+    lay_css = {0: "", 2: LAYOUT2_CSS,
+               1: LAYOUT1_CSS.replace("{BG}", photos[0] if photos else "").replace("{C1A}", rgba(c1, .86)).replace("{C1}", c1)}[layout]
     return f"""<!doctype html><html dir="rtl"><head><meta charset="utf-8"><style>
 @font-face {{ font-family: Cairo; src: url('file://{FONT}'); }}
 * {{ margin:0; padding:0; box-sizing:border-box; }}
@@ -69,7 +97,8 @@ body {{ font-family: Cairo, 'Noto Color Emoji', sans-serif; background: linear-g
 .foot {{ margin-top:auto; display:flex; justify-content:space-between; align-items:center; color:rgba(255,255,255,.85);
   font-size:30px; font-weight:800; border-top:2px solid rgba(255,255,255,.25); padding-top:14px; }}
 .foot .h {{ direction:ltr; }}
-</style></head><body><div class="card">{top}
+{lay_css}
+</style></head><body class="l{layout}"><div class="card">{top}
 <div class="label"><span class="bulb">💡</span><span class="t">هل تعلم؟</span><span class="line"></span></div>
 <div class="text">{clean(spec["text"])}</div>
 <div class="foot"><span>🔖 احفظ المنشور وشاركه</span><span class="h">@did.you.know.iq</span></div>
@@ -85,6 +114,8 @@ document.fonts.ready.then(() => {{
 
 def render(spec_f, idx):
     spec = json.loads(spec_f.read_text(encoding="utf-8-sig"))
+    m = re.match(r"(\d+)_", spec_f.name)
+    spec["_layout"] = int(m.group(1)) % 3 if m else 0
     out_jpg = ROOT / "posts" / (spec_f.stem + ".jpg")
     with tempfile.TemporaryDirectory() as td:
         page = pathlib.Path(td) / "p.html"

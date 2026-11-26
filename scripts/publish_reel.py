@@ -189,6 +189,8 @@ def share_as_story(video_url, mp4):
 def main():
     state_f = ROOT / "state.json"
     state = json.loads(state_f.read_text(encoding="utf-8"))
+    if not DRY and (ig_api.is_paused(state) or not ig_api.quota_ok()):
+        return 0
     tried = 0
     for spec_f in candidates(state):
         if tried == 3:
@@ -217,9 +219,14 @@ def main():
             media = publish(spec, mp4, cover)
         except ApiError as e:
             print("NOT published:", e)
-            return 1                            # state untouched: the spec stays available
+            hours = ig_api.classify_error(e)
+            if hours:
+                ig_api.pause(state, hours, e)
+                state_f.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+            return 1                            # spec stays available
         print("Published reel:", media.get("permalink") or media.get("id"))
         state.setdefault("reeled", []).append(spec_f.stem)
+        state.setdefault("media_ids", {})[spec_f.stem] = media.get("id")
         if media.get("story"):
             ig_api.remember_story(state, f"r:{spec_f.stem}")
         state_f.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")

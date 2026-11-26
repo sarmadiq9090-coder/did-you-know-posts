@@ -12,6 +12,7 @@ and writes a preview sheet per case into `reel_test_out/` (not committed). Nothi
 | 5_short_text | ~10 words: a single short scene |
 | 6_mixed_ratios | landscape, portrait and panorama photos (cover-cropped, never stretched) |
 | 7_no_photos | emoji background, darkest palette (black-frame and contrast checks) |
+| 8_question_hook | «خمّن…؟» hook from the optional `question` field |
 
 The photo IDs are real Pexels photos, downloaded at render time.
 `tools/test_reels.py --local DIR` uses local images instead (for offline runs).

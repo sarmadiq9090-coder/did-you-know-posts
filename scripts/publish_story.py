@@ -54,6 +54,8 @@ def main():
     state_f = ROOT / "state.json"
     state = json.loads(state_f.read_text(encoding="utf-8"))
     done = set(state.get("stories", []))
+    if not DRY and (ig_api.is_paused(state) or not ig_api.quota_ok()):
+        return 0
     OUT.mkdir(parents=True, exist_ok=True)
 
     if kind == "question":
@@ -86,7 +88,12 @@ def main():
     try:
         media = ig_api.publish_story(image_url=url)
     except ig_api.ApiError as e:
-        print("Story NOT published:", e); return 1
+        print("Story NOT published:", e)
+        hours = ig_api.classify_error(e)
+        if hours:
+            ig_api.pause(state, hours, e)
+            state_f.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        return 1
     finally:
         ig_api.unhost(out)
     print("Published story", media.get("id"), key)

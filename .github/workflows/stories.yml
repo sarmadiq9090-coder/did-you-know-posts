@@ -24,8 +24,11 @@ concurrency:
 jobs:
   story:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
     steps:
+      - name: Random delay (scheduled runs only, 0-25 min) so posts are not robot-exact
+        if: github.event_name == 'schedule'
+        run: sleep $(( RANDOM % 1500 ))
       - uses: actions/checkout@v4
       - name: Install tools
         run: |

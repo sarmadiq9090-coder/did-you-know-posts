@@ -14,6 +14,12 @@ API = ("https://graph.instagram.com/v26.0" if TOKEN.startswith("IG")
        else "https://graph.facebook.com/v26.0")
 REPO = os.environ["GITHUB_REPOSITORY"]
 BRANCH = os.environ.get("GITHUB_REF_NAME", "main")
+sys.path.insert(0, str(ROOT / "scripts"))
+import ig_api  # noqa: E402  (pause / quota helpers)
+
+
+class PublishError(Exception):
+    pass
 
 
 def call(method, path, **params):
@@ -29,7 +35,7 @@ def call(method, path, **params):
             return json.load(r)
     except urllib.error.HTTPError as e:
         body = e.read().decode(errors="replace")
-        sys.exit(f"API error {e.code} on {path}: {body}")
+        raise PublishError(f"API error {e.code} on {path}: {body[:600]}")
 
 
 def main():
@@ -51,6 +57,11 @@ def main():
         queue.append({"image": rel, "caption": cap})
     state_f = ROOT / "state.json"
     state = json.loads(state_f.read_text(encoding="utf-8"))
+    if ig_api.is_paused(state):
+        return
+    if not ig_api.quota_ok():
+        print("Near the 24-hour publishing limit; skipping this slot.")
+        return
     done = set(state["published"])
     reeled = set(state.get("reeled", []))   # facts already published as a reel are skipped
     nxt = next((p for p in queue if p["image"] not in done and pathlib.Path(p["image"]).stem not in reeled), None)
@@ -62,20 +73,26 @@ def main():
     print(f"Publishing via {API} to {ig_id}: {nxt['image']}")
 
     image_url = f"https://raw.githubusercontent.com/{REPO}/{BRANCH}/{urllib.parse.quote(nxt['image'])}"
-    container = call("POST", f"{ig_id}/media", image_url=image_url, caption=nxt["caption"])["id"]
-
-    for _ in range(30):
-        status = call("GET", container, fields="status_code")["status_code"]
-        if status == "FINISHED":
-            break
-        if status in ("ERROR", "EXPIRED"):
-            sys.exit(f"Container failed: {status}")
-        time.sleep(5)
-
-    media = call("POST", f"{ig_id}/media_publish", creation_id=container)
+    try:
+        container = call("POST", f"{ig_id}/media", image_url=image_url, caption=nxt["caption"])["id"]
+        for _ in range(30):
+            status = call("GET", container, fields="status_code")["status_code"]
+            if status == "FINISHED":
+                break
+            if status in ("ERROR", "EXPIRED"):
+                raise PublishError(f"Container failed: {status}")
+            time.sleep(5)
+        media = call("POST", f"{ig_id}/media_publish", creation_id=container)
+    except PublishError as e:
+        hours = ig_api.classify_error(e)
+        if hours:
+            ig_api.pause(state, hours, e)
+            state_f.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        sys.exit(str(e))
     print("Published media id:", media["id"])
 
     state["published"].append(nxt["image"])
+    state.setdefault("media_ids", {})[pathlib.Path(nxt["image"]).stem] = media["id"]
     state_f.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
