@@ -18,7 +18,9 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-color-emoji >/dev/null
           pip install -q pillow
       - name: Render specs to images
-        run: python3 tools/render_specs.py
+        run: |
+          python3 tools/render_specs.py
+          python3 tools/check_queue.py
       - name: Commit rendered posts
         run: |
           git config user.name "post-bot"; git config user.email "post-bot@users.noreply.github.com"
