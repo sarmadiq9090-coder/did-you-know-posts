@@ -10,6 +10,11 @@
 - `scripts/publish.py` ينشر المنشور التالي.
 - `scripts/refresh_token.py` يجدد رمز الوصول.
 - `.github/workflows/publish.yml` الجدولة اليومية.
+- `scripts/publish_reel.py` يصنع الريلز ويفحصه وينشره (`--dry-run` للمعاينة فقط بدون نشر).
+- `tools/make_reel.py` تصميم الريلز والغلاف، `tools/validate_reel.py` فحص الجودة قبل النشر،
+  `tools/reel_previews.py` صورة معاينة (الإطارات، المنطقة الآمنة، قص الشبكة 3:4 والصفحة الرئيسية 1:1).
+- `tools/test_reels.py` + `tests/reel_cases/` سبع حالات اختبار للريلز.
+- `.github/workflows/reels.yml` نشر ريلزين يومياً، و`reel-preview.yml` معاينات تلقائية في كل Pull Request يغيّر الريلز.
 
 ## الإعداد (مرة واحدة)
 1. المستودع يجب أن يكون **Public** حتى يستطيع إنستغرام سحب الصور.

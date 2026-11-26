@@ -50,7 +50,7 @@ def build_html(spec, idx):
 @font-face {{ font-family: Cairo; src: url('file://{FONT}'); }}
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 html,body {{ width:1080px; height:1350px; overflow:hidden; }}
-body {{ font-family: Cairo, 'Noto Color Emoji', sans-serif; background: linear-gradient(135deg, {c1} 0%, {c2} 100%); padding:34px; }}
+body {{ font-family: Cairo, 'Noto Color Emoji', sans-serif; background: linear-gradient(135deg, {c1} 0%, {c2} 100%); padding:34px 70px; }}
 .card {{ width:100%; height:100%; display:flex; flex-direction:column; }}
 .grid {{ display:grid; grid-template-columns: 2fr 1fr; grid-template-rows: 1fr 1fr; gap:12px; height:640px; }}
 .grid div {{ background-size:cover; background-position:center; border-radius:18px; box-shadow:0 6px 18px rgba(0,0,0,.35); }}
@@ -64,7 +64,7 @@ body {{ font-family: Cairo, 'Noto Color Emoji', sans-serif; background: linear-g
 .label .t {{ font-size:62px; font-weight:900; color:#ffcc33; text-shadow:0 3px 10px rgba(0,0,0,.35); }}
 .label .bulb {{ font-family:'Noto Color Emoji'; font-size:56px; }}
 .label .line {{ flex:1; height:4px; background: rgba(255,255,255,.35); border-radius:4px; }}
-.text {{ color:#fff; font-size:41px; font-weight:600; line-height:1.75; text-align:justify; text-shadow:0 2px 6px rgba(0,0,0,.25); }}
+.text {{ color:#fff; font-size:var(--fs, 41px); font-weight:600; line-height:1.75; text-align:justify; text-shadow:0 2px 6px rgba(0,0,0,.25); }}
 .text b {{ color:#ffcc33; font-weight:900; }}
 .foot {{ margin-top:auto; display:flex; justify-content:space-between; align-items:center; color:rgba(255,255,255,.85);
   font-size:30px; font-weight:800; border-top:2px solid rgba(255,255,255,.25); padding-top:14px; }}
@@ -73,7 +73,14 @@ body {{ font-family: Cairo, 'Noto Color Emoji', sans-serif; background: linear-g
 <div class="label"><span class="bulb">💡</span><span class="t">هل تعلم؟</span><span class="line"></span></div>
 <div class="text">{clean(spec["text"])}</div>
 <div class="foot"><span>🔖 احفظ المنشور وشاركه</span><span class="h">@did.you.know.iq</span></div>
-</div></body></html>"""
+</div><script>
+// shrink the text (never below 32px) until the footer fits on the card
+document.fonts.ready.then(() => {{
+  const card = document.querySelector('.card'), t = document.querySelector('.text');
+  let fs = 41;
+  while (card.scrollHeight > card.clientHeight + 1 && fs > 32) {{ fs -= 1; t.style.setProperty('--fs', fs + 'px'); }}
+}});
+</script></body></html>"""
 
 
 def render(spec_f, idx):

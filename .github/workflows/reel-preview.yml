@@ -1,0 +1,75 @@
+name: Reel preview (no publishing)
+on:
+  push:
+    branches: ["fix/**"]
+    paths:
+      - "tools/make_reel.py"
+      - "tools/validate_reel.py"
+      - "tools/reel_previews.py"
+      - "tools/test_reels.py"
+      - "scripts/publish_reel.py"
+      - "tests/reel_cases/**"
+      - ".github/workflows/reels.yml"
+      - ".github/workflows/reel-preview.yml"
+  pull_request:
+    paths:
+      - "tools/make_reel.py"
+      - "tools/validate_reel.py"
+      - "tools/reel_previews.py"
+      - "tools/test_reels.py"
+      - "scripts/publish_reel.py"
+      - "tests/reel_cases/**"
+      - ".github/workflows/reels.yml"
+      - ".github/workflows/reel-preview.yml"
+  workflow_dispatch: {}
+permissions:
+  contents: write     # only used on pushes to fix/** branches, to attach preview images to the "reel-previews" pre-release
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-color-emoji fonts-dejavu-core ffmpeg >/dev/null
+          pip install -q numpy pillow
+      - name: Render, validate and preview all test cases
+        run: python3 tools/test_reels.py --out reel_test_out
+      - name: Dry run on the next real spec (nothing is published)
+        if: always()
+        env:
+          REEL_OUT: reel_test_out/next_spec
+        run: python3 scripts/publish_reel.py --dry-run
+      - name: Summary
+        if: always()
+        run: cat reel_test_out/summary.md >> "$GITHUB_STEP_SUMMARY" || true
+      - name: Preview images on the reel-previews pre-release (viewable without signing in)
+        if: always() && github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import pathlib
+          from PIL import Image
+          out = pathlib.Path("reel_test_out/jpg"); out.mkdir(exist_ok=True)
+          for p in pathlib.Path("reel_test_out").rglob("*.preview.png"):
+              im = Image.open(p).convert("RGB")
+              if im.width > 1600:
+                  im = im.resize((1600, round(im.height * 1600 / im.width)))
+              im.save(out / p.name.replace(".preview.png", ".jpg"), quality=80)
+          PY
+          gh release view reel-previews >/dev/null 2>&1 || gh release create reel-previews --prerelease \
+            --title "Reel previews (tests, not published)" --notes "Preview sheets from the latest reel test run."
+          gh release upload reel-previews reel_test_out/jpg/*.jpg reel_test_out/summary.md --clobber
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reel-previews
+          path: |
+            reel_test_out/**/*.preview.png
+            reel_test_out/**/*.cover.jpg
+            reel_test_out/**/*.report.json
+            reel_test_out/**/*.meta.json
+            reel_test_out/summary.md
+          retention-days: 5
