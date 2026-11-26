@@ -6,7 +6,7 @@ Usage: python3 tools/test_reels.py [--local DIR] [--out reel_test_out] [case ...
 Writes <out>/<case>.mp4, .cover.jpg, .meta.json, .report.json, .preview.png and <out>/summary.md.
 Exit code 1 if any case fails validation.
 """
-import json, pathlib, sys, time
+import json, os, pathlib, sys, time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
@@ -43,7 +43,8 @@ def main(argv):
             ok, fails, warns, rep = validate(mp4, mp4.with_suffix(".cover.jpg"), meta)
             sheet(mp4, mp4.with_suffix(".cover.jpg"), mp4.with_suffix(".meta.json"))
         except Exception as e:  # a crash is a failed case, keep testing the rest
-            ok, fails, warns, rep, meta = False, [f"crash: {e}"], [], {}, {}
+            import traceback; traceback.print_exc()
+            ok, fails, warns, rep, meta = False, [f"crash: {type(e).__name__}: {e}"], [], {}, {}
         failed += not ok
         v = rep.get("video", {})
         rows.append(f"| {spec.stem} | {'PASS' if ok else 'FAIL'} | {rep.get('duration', 0):.1f}s | "
@@ -53,6 +54,14 @@ def main(argv):
                     f"{', '.join(meta.get('motions', []))} | {time.time() - t0:.0f}s | "
                     f"{'; '.join(fails + warns) or '—'} |")
         print(rows[-1])
+        if os.environ.get("GITHUB_ACTIONS"):          # annotations are visible on the run page without signing in
+            for msg in fails + warns:
+                level = "error" if msg in fails else "warning"
+                print(f"::{level} title={spec.stem}::{msg[:900]}")
+            if ok:
+                print(f"::notice title={spec.stem}::PASS {rep.get('duration', 0):.1f}s, photos "
+                      f"{meta.get('photos_loaded', 0)}/{meta.get('photos_expected', 0)}, scenes "
+                      f"{len([s for s in meta.get('scenes', []) if s['name'].startswith('s')])}")
     md = ["| case | result | length | video | text scenes | photos | camera | render | notes |",
           "|---|---|---|---|---|---|---|---|---|"] + rows
     (out / "summary.md").write_text("\n".join(md) + "\n", encoding="utf-8")

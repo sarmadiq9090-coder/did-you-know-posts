@@ -48,5 +48,10 @@ jobs:
         if: always()
         with:
           name: reel-previews
-          path: reel_test_out/
+          path: |
+            reel_test_out/**/*.preview.png
+            reel_test_out/**/*.cover.jpg
+            reel_test_out/**/*.report.json
+            reel_test_out/**/*.meta.json
+            reel_test_out/summary.md
           retention-days: 5

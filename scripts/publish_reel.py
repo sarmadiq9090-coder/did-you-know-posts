@@ -116,6 +116,8 @@ def render_and_check(spec_f):
     print(("PASS " if ok else "FAIL ") + spec_f.name)
     for f in fails:
         print("  ✗", f)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::error title=reel {spec_f.stem}::{f[:900]}")
     for w in warns:
         print("  !", w)
     return ok, mp4, cover, fails
@@ -178,8 +180,10 @@ def main():
         try:
             ok, mp4, cover, fails = render_and_check(spec_f)
         except Exception as e:
-            ok, fails = False, [f"render crashed: {e}"]
+            ok, fails = False, [f"render crashed: {type(e).__name__}: {e}"]
             print("  ✗", fails[0])
+            if os.environ.get("GITHUB_ACTIONS"):
+                print(f"::error title=reel {spec_f.stem}::{fails[0][:900]}")
         if not ok:
             if not DRY:
                 state.setdefault("reel_rejected", {})[spec_f.stem] = "; ".join(fails)[:300]
