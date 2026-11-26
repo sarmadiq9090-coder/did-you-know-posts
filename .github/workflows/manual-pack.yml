@@ -1,0 +1,28 @@
+name: Manual pack (render reels for hand upload)
+on:
+  workflow_dispatch:
+    inputs:
+      reels:
+        description: "How many reels to render"
+        default: "2"
+  push:
+    paths: ["pack_request.txt"]
+permissions:
+  contents: write
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq fonts-noto-color-emoji fonts-dejavu-core ffmpeg >/dev/null
+          pip install -q numpy pillow
+      - name: Render and upload pack
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACK_REELS: ${{ inputs.reels || '2' }}
+        run: |
+          export REEL_OUT="$RUNNER_TEMP/pack"
+          python3 tools/manual_pack.py
